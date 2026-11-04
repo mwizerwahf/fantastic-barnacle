@@ -15,6 +15,12 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 MARKET_TZ = "America/New_York"
 
 
+def missing_alpaca_keys_message() -> str:
+    env_path = Path.cwd() / ".env"
+    found = "found but the keys are empty or misspelled" if env_path.exists() else "NOT FOUND"
+    return f"ALPACA_API_KEY and ALPACA_SECRET_KEY must be set ({env_path}: {found})"
+
+
 def _split_csv(value: Any) -> Any:
     if isinstance(value, str):
         return [item.strip() for item in value.split(",") if item.strip()]
@@ -24,7 +30,7 @@ def _split_csv(value: Any) -> Any:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
-        env_file_encoding="utf-8",
+        env_file_encoding="utf-8-sig",  # tolerate a BOM added by Windows editors
         extra="ignore",
         case_sensitive=False,
     )

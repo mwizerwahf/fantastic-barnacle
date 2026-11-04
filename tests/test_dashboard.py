@@ -17,7 +17,15 @@ from core.config import Settings
 from core.journal import JournalHandler, read_events
 from core.observability import log_event, new_correlation_id
 from dashboard.app import DashboardService, make_handler
-from dashboard.history import Fill, fills_from_orders, pair_round_trips, trade_stats
+from dashboard.history import (
+    Fill,
+    by_symbol,
+    daily_pnl,
+    fills_from_orders,
+    max_drawdown_pct,
+    pair_round_trips,
+    trade_stats,
+)
 
 
 def order(oid: str, side: str, qty: float, price: float, at: str, legs: list[dict] | None = None,
@@ -51,10 +59,26 @@ def test_short_and_partial_fills_fifo() -> None:
 
 
 def test_trade_stats() -> None:
-    stats = trade_stats([{"pnl": 30.0}, {"pnl": -10.0}, {"pnl": 20.0}])
+    trades = [
+        {"pnl": 30.0, "opened_at": "2026-11-04T15:00:00+00:00", "closed_at": "2026-11-04T15:30:00+00:00"},
+        {"pnl": -10.0, "opened_at": "2026-11-04T16:00:00+00:00", "closed_at": "2026-11-04T16:10:00+00:00"},
+        {"pnl": 20.0},
+    ]
+    stats = trade_stats(trades)
     assert stats == {"trades": 3, "wins": 2, "losses": 1, "win_rate": 66.7, "net_pnl": 40.0,
-                     "avg_win": 25.0, "avg_loss": -10.0, "profit_factor": 5.0}
+                     "avg_win": 25.0, "avg_loss": -10.0, "profit_factor": 5.0, "expectancy": 13.33,
+                     "best": 30.0, "worst": -10.0, "avg_hold_min": 20.0}
     assert trade_stats([])["win_rate"] is None
+
+
+def test_daily_pnl_drawdown_and_by_symbol() -> None:
+    points = [{"date": "2026-11-02", "equity": 101.0}, {"date": "2026-11-03", "equity": 99.0},
+              {"date": "2026-11-04", "equity": 102.0}]
+    assert [d["pnl"] for d in daily_pnl(points, 100.0)] == [1.0, -2.0, 3.0]
+    assert max_drawdown_pct([100.0, 110.0, 99.0, 120.0]) == 10.0
+    assert max_drawdown_pct([]) is None
+    rows = by_symbol([{"symbol": "SPY", "pnl": 5.0}, {"symbol": "QQQ", "pnl": -2.0}, {"symbol": "SPY", "pnl": -1.0}])
+    assert rows[0] == {"symbol": "SPY", "trades": 2, "net_pnl": 4.0, "win_rate": 50.0}
 
 
 # --- Journal ---------------------------------------------------------------------
@@ -67,7 +91,7 @@ def test_journal_records_only_decision_events(tmp_path: Path) -> None:
     try:
         cid = new_correlation_id()
         log_event(logger, logging.INFO, "risk.rejected", symbol="SPY", reason="pdt_limit", detail="3 used")
-        log_event(logger, logging.INFO, "ai.call", model="x", latency_ms=5)  # not journaled
+        log_event(logger, logging.INFO, "external.retry", op="x", attempt=1)  # not journaled
         log_event(logger, logging.INFO, "signal", symbol="QQQ", action="BUY", reasoning="<script>x</script>")
     finally:
         logger.removeHandler(handler)
@@ -132,11 +156,24 @@ def test_api_endpoints(server: str) -> None:
     assert status == 200 and trades["stats"]["net_pnl"] == -10.0
     assert _get(server + "/api/equity?range=1D")[1]["timeframe"] == "5Min"
     assert _get(server + "/api/decisions")[1] == {"events": []}
+    risk = summary["risk"]
+    assert risk["daily_loss"] == {"used": 0.0, "limit": 3.0}
+    assert risk["positions"] == {"used": 0, "limit": 2} and risk["trades_today"]["limit"] == 6
+    assert risk["day_trades"]["applies"] is False  # paper equity above the PDT threshold
+
+    status, perf = _get(server + "/api/performance?days=30")
+    assert status == 200 and perf["stats"]["trades"] == 1 and perf["daily"][0]["pnl"] == 250.0
+    status, cfg = _get(server + "/api/config")
+    assert status == 200 and cfg["trading"]["mode"] == "paper"
+    assert {"rule": "Risk per trade", "value": 1.0, "hard": 2.0, "unit": "% of equity", "kind": "max"} in cfg["limits"]
+    assert "alpaca_api_key" not in json.dumps(cfg)
+    status, ai = _get(server + "/api/ai-usage")
+    assert status == 200 and ai["today"]["calls"] == 0 and ai["week"]["cost_usd"] is None
 
 
 def test_static_and_safety(server: str) -> None:
     status, body = _get(server + "/")
-    assert status == 200 and b"Trading Dashboard" in body
+    assert status == 200 and b"Trading Console" in body
     assert _get(server + "/static/app.js")[0] == 200
     assert _get(server + "/static/../core/config.py")[0] == 404
     assert _get(server + "/nope")[0] == 404

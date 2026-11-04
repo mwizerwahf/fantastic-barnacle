@@ -25,7 +25,7 @@ from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest, StockLatestQuoteRequest, StockTradesRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
-from core.config import MARKET_TZ, Settings
+from core.config import MARKET_TZ, Settings, missing_alpaca_keys_message
 from core.exceptions import ConfigError, DataError, DataValidationError, StaleDataError, TradingBotError
 from core.models import Bar, MarketSession, Quote
 from core.observability import log_event
@@ -112,7 +112,7 @@ class AlpacaDataProvider(BaseDataProvider):
         key = settings.alpaca_api_key.get_secret_value()
         secret = settings.alpaca_secret_key.get_secret_value()
         if client is None and not (key and secret):
-            raise ConfigError("ALPACA_API_KEY and ALPACA_SECRET_KEY must be set")
+            raise ConfigError(missing_alpaca_keys_message())
         self._client = client or StockHistoricalDataClient(key, secret)
         self._feed = DataFeed.SIP if settings.data_feed == "sip" else DataFeed.IEX
         self._timeout = settings.data_timeout_s

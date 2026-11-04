@@ -26,7 +26,7 @@ from alpaca.trading.requests import (
     TakeProfitRequest,
 )
 
-from core.config import MARKET_TZ, Settings
+from core.config import MARKET_TZ, Settings, missing_alpaca_keys_message
 from core.exceptions import BrokerError, ConfigError, OrderSubmissionError, TradingBotError
 from core.models import (
     AccountState,
@@ -106,7 +106,7 @@ class AlpacaBroker(BaseBroker):
         key = settings.alpaca_api_key.get_secret_value()
         secret = settings.alpaca_secret_key.get_secret_value()
         if client is None and not (key and secret):
-            raise ConfigError("ALPACA_API_KEY and ALPACA_SECRET_KEY must be set")
+            raise ConfigError(missing_alpaca_keys_message())
         self._client = client or TradingClient(key, secret, paper=settings.is_paper)
         self._timeout = settings.broker_timeout_s
         self._attempts = settings.max_attempts

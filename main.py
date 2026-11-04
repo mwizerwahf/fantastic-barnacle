@@ -197,7 +197,7 @@ def _live_warning(settings: Settings) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    load_dotenv()  # exposes provider API keys (ANTHROPIC_API_KEY, ...) to LiteLLM
+    load_dotenv(encoding="utf-8-sig")  # exposes provider API keys (ANTHROPIC_API_KEY, ...) to LiteLLM
     args = _parse_args(argv)
     try:
         settings = Settings()

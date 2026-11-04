@@ -22,27 +22,51 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 from urllib.parse import parse_qs, urlsplit
+from zoneinfo import ZoneInfo
 
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import QueryOrderStatus
 from alpaca.trading.requests import GetOrdersRequest, GetPortfolioHistoryRequest
 from dotenv import load_dotenv
 
-from core.config import Settings
+from core.config import MARKET_TZ, Settings, missing_alpaca_keys_message
 from core.exceptions import ConfigError
 from core.journal import read_events
 from core.observability import log_event, setup_logging
 from core.resilience import call_external
-from dashboard.history import fills_from_orders, pair_round_trips, trade_stats
+from dashboard.history import (
+    by_symbol,
+    daily_pnl,
+    fills_from_orders,
+    max_drawdown_pct,
+    pair_round_trips,
+    trade_stats,
+)
+from risk.guardrails import (  # limits only; the dashboard never creates or submits orders
+    HARD_MAX_CONCURRENT_POSITIONS,
+    HARD_MAX_DAILY_DRAWDOWN_PCT,
+    HARD_MAX_POSITION_NOTIONAL_PCT,
+    HARD_MAX_RISK_PER_TRADE_PCT,
+    HARD_MAX_TRADES_PER_DAY,
+    HARD_MIN_CONFIDENCE,
+    HARD_MIN_EOD_FLATTEN_MINUTES,
+    HARD_MIN_REWARD_RISK,
+    HARD_MIN_STOP_ATR_MULT,
+    RiskLimits,
+)
 
 T = TypeVar("T")
 log = logging.getLogger("dashboard")
+NY = ZoneInfo(MARKET_TZ)
 STATIC_DIR = Path(__file__).parent / "static"
 STATIC_FILES = {"index.html", "app.js", "style.css"}
 CACHE_TTL_S = 15.0
 DECISION_EVENTS = {"signal", "ai.decision", "ai.invalid_response_final", "ai.all_providers_failed",
                    "risk.approved", "risk.rejected", "risk.kill_switch", "risk.force_flatten",
                    "order.submitted", "order.recovered_after_error", "symbol.skipped"}
+ERROR_EVENTS = {"symbol.skipped", "risk.gate_error", "cycle.state_unavailable", "risk.flatten_failed",
+                "ai.all_providers_failed"}
+AI_FAILURE_EVENTS = {"ai.provider_failed", "ai.invalid_response_final", "ai.all_providers_failed"}
 EQUITY_RANGES = {"1D": ("1D", "5Min"), "1W": ("1W", "1H"), "1M": ("1M", "1D"), "3M": ("3M", "1D")}
 
 
@@ -88,7 +112,7 @@ class AlpacaHistory:
         key = settings.alpaca_api_key.get_secret_value()
         secret = settings.alpaca_secret_key.get_secret_value()
         if client is None and not (key and secret):
-            raise ConfigError("ALPACA_API_KEY and ALPACA_SECRET_KEY must be set")
+            raise ConfigError(missing_alpaca_keys_message())
         self._client = client or TradingClient(key, secret, paper=settings.is_paper)
         self._timeout = settings.broker_timeout_s
         self._cache: dict[str, tuple[float, Any]] = {}
@@ -150,34 +174,141 @@ class DashboardService:
         self._source = source
         self._journal = settings.state_dir / "journal.db"
         self._risk_state = settings.state_dir / "risk_state.json"
+        self._limits = RiskLimits.from_settings(settings)
 
     def _bot_status(self) -> dict[str, Any]:
         beats = read_events(self._journal, limit=1, events={"heartbeat"})
+        errors = read_events(self._journal, limit=2000, events=ERROR_EVENTS,
+                             since=datetime.now(UTC) - timedelta(hours=24))
         if not beats:
-            return {"state": "unknown", "last_heartbeat": None}
+            return {"state": "unknown", "last_heartbeat": None, "errors_24h": len(errors)}
         last = beats[0]
         age = (datetime.now(UTC) - datetime.fromisoformat(last["ts"])).total_seconds()
         # The bot sleeps up to 15 minutes between heartbeats while the market is closed.
         limit = max(self._settings.timeframe_minutes * 60 * 3, 20 * 60)
         return {"state": "running" if age <= limit else "stale", "last_heartbeat": last["ts"],
-                "age_s": round(age), "gate": last.get("gate"), "mode": last.get("mode")}
+                "age_s": round(age), "gate": last.get("gate"), "mode": last.get("mode"),
+                "cycle": last.get("cycle"), "uptime_s": last.get("uptime_s"),
+                "last_cycle_ms": last.get("duration_ms"), "errors_24h": len(errors)}
 
-    def _halt(self) -> dict[str, Any] | None:
+    def _risk_state_data(self) -> dict[str, Any]:
         try:
-            return json.loads(self._risk_state.read_text(encoding="utf-8")).get("halt")
+            data = json.loads(self._risk_state.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
         except (OSError, ValueError):
-            return None
+            return {}
+
+    def _risk_usage(self, account: dict[str, Any], positions: list[dict[str, Any]],
+                    state: dict[str, Any]) -> dict[str, Any]:
+        lim = self._limits
+        today = datetime.now(NY).date().isoformat()
+        equity, last = account.get("equity") or 0.0, account.get("last_equity") or 0.0
+        halt = state.get("halt")
+        return {
+            "daily_loss": {"used": round(max(0.0, (last - equity) / last * 100), 3) if last else 0.0,
+                           "limit": round(lim.max_daily_drawdown_pct * 100, 3)},
+            "positions": {"used": len(positions), "limit": lim.max_concurrent_positions},
+            "trades_today": {"used": sum(1 for e in state.get("entries", []) if e.get("date") == today),
+                             "limit": lim.max_trades_per_day},
+            "day_trades": {"used": account.get("daytrade_count") or 0, "limit": lim.pdt_max_day_trades,
+                           "applies": min(equity, last) < lim.pdt_equity_threshold,
+                           "threshold": lim.pdt_equity_threshold},
+            "halted_today": bool(halt and halt.get("session_date") == today),
+        }
 
     def summary(self) -> dict[str, Any]:
+        account = self._source.account()
+        positions = self._source.positions()
+        state = self._risk_state_data()
         return {
             "generated_at": datetime.now(UTC).isoformat(),
             "mode": self._settings.trading_mode,
-            "account": self._source.account(),
-            "positions": self._source.positions(),
+            "account": account,
+            "positions": positions,
             "clock": self._source.clock(),
             "bot": self._bot_status(),
-            "halt": self._halt(),
+            "halt": state.get("halt"),
+            "risk": self._risk_usage(account, positions, state),
             "symbols": self._settings.symbols,
+            "timeframe_minutes": self._settings.timeframe_minutes,
+        }
+
+    def performance(self, days: int) -> dict[str, Any]:
+        history = self._source.equity("3M", "1D")
+        points = [{"date": datetime.fromisoformat(p["t"]).astimezone(NY).date().isoformat(), "equity": p["equity"]}
+                  for p in history["points"]]
+        cutoff = (datetime.now(NY).date() - timedelta(days=days)).isoformat()
+        daily = [d for d in daily_pnl(points, history.get("base_value")) if d["date"] >= cutoff]
+        trades = pair_round_trips(fills_from_orders(self._source.orders(days)))
+        return {
+            "days": days,
+            "stats": trade_stats(trades),
+            "by_symbol": by_symbol(trades),
+            "daily": daily,
+            "max_drawdown_pct": max_drawdown_pct([p["equity"] for p in points if p["date"] >= cutoff]),
+            "green_days": sum(1 for d in daily if d["pnl"] > 0),
+            "red_days": sum(1 for d in daily if d["pnl"] < 0),
+        }
+
+    def config(self) -> dict[str, Any]:
+        s, lim = self._settings, self._limits
+        pct = lambda v: round(v * 100, 3)  # noqa: E731
+        return {
+            "trading": {"mode": s.trading_mode, "broker": s.broker, "strategy": s.strategy,
+                        "timeframe_minutes": s.timeframe_minutes, "data_feed": s.data_feed,
+                        "cvd_source": s.cvd_source, "allow_short": lim.allow_short, "symbols": s.symbols,
+                        "flatten_on_shutdown": s.flatten_on_shutdown},
+            "ai": {"model": s.ai_model, "fallback_models": s.ai_fallback_models, "timeout_s": s.ai_timeout_s,
+                   "context_bars": s.ai_context_bars},
+            "limits": [
+                {"rule": "Risk per trade", "value": pct(lim.risk_per_trade_pct), "hard": pct(HARD_MAX_RISK_PER_TRADE_PCT),
+                 "unit": "% of equity", "kind": "max"},
+                {"rule": "Position size", "value": pct(lim.max_position_notional_pct),
+                 "hard": pct(HARD_MAX_POSITION_NOTIONAL_PCT), "unit": "% of equity", "kind": "max"},
+                {"rule": "Daily loss kill switch", "value": pct(lim.max_daily_drawdown_pct),
+                 "hard": pct(HARD_MAX_DAILY_DRAWDOWN_PCT), "unit": "%", "kind": "max"},
+                {"rule": "Reward : risk", "value": lim.min_reward_risk, "hard": HARD_MIN_REWARD_RISK, "unit": "x",
+                 "kind": "min"},
+                {"rule": "AI confidence", "value": lim.min_confidence, "hard": HARD_MIN_CONFIDENCE, "unit": "",
+                 "kind": "min"},
+                {"rule": "Stop distance", "value": lim.min_stop_atr_mult, "hard": HARD_MIN_STOP_ATR_MULT,
+                 "unit": "x ATR", "kind": "min"},
+                {"rule": "Concurrent positions", "value": lim.max_concurrent_positions,
+                 "hard": HARD_MAX_CONCURRENT_POSITIONS, "unit": "", "kind": "max"},
+                {"rule": "Trades per day", "value": lim.max_trades_per_day, "hard": HARD_MAX_TRADES_PER_DAY,
+                 "unit": "", "kind": "max"},
+                {"rule": "End-of-day flatten", "value": lim.eod_flatten_minutes, "hard": HARD_MIN_EOD_FLATTEN_MINUTES,
+                 "unit": "min before close", "kind": "min"},
+                {"rule": "Opening blackout", "value": lim.open_blackout_minutes, "hard": None,
+                 "unit": "min after open", "kind": "min"},
+                {"rule": "PDT day-trade limit", "value": lim.pdt_max_day_trades, "hard": None,
+                 "unit": f"per 5 sessions under ${lim.pdt_equity_threshold:,.0f}", "kind": "max"},
+            ],
+        }
+
+    def ai_usage(self) -> dict[str, Any]:
+        since = datetime.now(UTC) - timedelta(days=7)
+        today = datetime.now(NY).date()
+        calls = read_events(self._journal, limit=2000, events={"ai.call"}, since=since)
+        fails = read_events(self._journal, limit=2000, events=AI_FAILURE_EVENTS, since=since)
+
+        def is_today(e: dict[str, Any]) -> bool:
+            return datetime.fromisoformat(e["ts"]).astimezone(NY).date() == today
+
+        def agg(rows: list[dict[str, Any]]) -> dict[str, Any]:
+            costs = [r["cost_usd"] for r in rows if isinstance(r.get("cost_usd"), (int, float))]
+            lat = [r["latency_ms"] for r in rows if isinstance(r.get("latency_ms"), (int, float))]
+            return {
+                "calls": len(rows),
+                "prompt_tokens": sum(r.get("prompt_tokens") or 0 for r in rows),
+                "completion_tokens": sum(r.get("completion_tokens") or 0 for r in rows),
+                "cost_usd": round(sum(costs), 4) if costs else None,
+                "avg_latency_ms": round(sum(lat) / len(lat)) if lat else None,
+            }
+
+        return {
+            "today": {**agg([c for c in calls if is_today(c)]), "failures": sum(1 for f in fails if is_today(f))},
+            "week": {**agg(calls), "failures": len(fails)},
         }
 
     def orders(self, days: int) -> dict[str, Any]:
@@ -233,6 +364,9 @@ def make_handler(service: DashboardService) -> type[BaseHTTPRequestHandler]:
                 "/api/equity": lambda: service.equity(query.get("range", ["1M"])[0]),
                 "/api/decisions": lambda: service.decisions(_int_param(query, "limit", 200, 1, 1000),
                                                             (query.get("symbol", [""])[0] or None)),
+                "/api/performance": lambda: service.performance(_int_param(query, "days", 30, 1, 90)),
+                "/api/config": service.config,
+                "/api/ai-usage": service.ai_usage,
                 "/healthz": lambda: {"ok": True},
             }
             if path in routes:
@@ -259,7 +393,7 @@ def make_handler(service: DashboardService) -> type[BaseHTTPRequestHandler]:
 
 
 def main() -> None:
-    load_dotenv()
+    load_dotenv(encoding="utf-8-sig")
     settings = Settings()
     setup_logging(settings.log_level, settings.log_json)
     service = DashboardService(settings, AlpacaHistory(settings))

@@ -18,7 +18,8 @@ from core.observability import get_correlation_id
 
 JOURNAL_EVENTS: Final[frozenset[str]] = frozenset({
     "startup", "heartbeat", "shutdown.begin", "shutdown.complete",
-    "signal", "ai.decision", "ai.invalid_response_final", "ai.all_providers_failed",
+    "signal", "ai.call", "ai.decision", "ai.provider_failed", "ai.invalid_response_final",
+    "ai.all_providers_failed",
     "risk.approved", "risk.rejected", "risk.kill_switch", "risk.force_flatten", "risk.flatten_failed",
     "order.submitted", "order.recovered_after_error", "dry_run.order",
     "symbol.skipped", "cycle.state_unavailable", "risk.gate_error",
@@ -72,13 +73,16 @@ class JournalHandler(logging.Handler):
 
 
 def read_events(path: Path, *, limit: int = 200, events: set[str] | None = None,
-                symbol: str | None = None) -> list[dict[str, Any]]:
+                symbol: str | None = None, since: datetime | None = None) -> list[dict[str, Any]]:
     """Newest-first events, read through a read-only connection."""
     if not path.exists():
         return []
     sql = "SELECT ts, level, event, cid, symbol, fields FROM events"
     clauses: list[str] = []
     params: list[Any] = []
+    if since is not None:
+        clauses.append("ts >= ?")
+        params.append(since.astimezone(UTC).isoformat(timespec="milliseconds"))
     if events:
         clauses.append(f"event IN ({','.join('?' * len(events))})")
         params.extend(sorted(events))
