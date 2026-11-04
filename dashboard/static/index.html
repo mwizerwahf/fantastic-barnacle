@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Trading Dashboard</title>
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <h1>Trading Dashboard</h1>
+      <span id="mode" class="pill">-</span>
+    </div>
+    <div class="status">
+      <span id="market" class="pill">market -</span>
+      <span id="bot" class="pill">bot -</span>
+      <span id="updated" class="muted">loading...</span>
+    </div>
+  </header>
+
+  <div id="halt" class="banner" hidden></div>
+  <div id="error" class="banner warn" hidden></div>
+
+  <main>
+    <section class="kpis" aria-label="Account summary">
+      <div class="kpi"><span class="label">Equity</span><span id="k-equity" class="value">-</span></div>
+      <div class="kpi"><span class="label">Day P&amp;L</span><span id="k-daypl" class="value">-</span></div>
+      <div class="kpi"><span class="label">Net P&amp;L (30d trades)</span><span id="k-netpl" class="value">-</span></div>
+      <div class="kpi"><span class="label">Win rate</span><span id="k-winrate" class="value">-</span></div>
+      <div class="kpi"><span class="label">Buying power</span><span id="k-bp" class="value">-</span></div>
+      <div class="kpi"><span class="label">Day trades (5d)</span><span id="k-dt" class="value">-</span></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Equity</h2>
+        <div class="seg" role="tablist" id="ranges">
+          <button data-range="1D">1D</button><button data-range="1W">1W</button>
+          <button data-range="1M" class="on">1M</button><button data-range="3M">3M</button>
+        </div>
+      </div>
+      <div id="chart" class="chart" role="img" aria-label="Equity curve"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Open positions</h2></div>
+      <div class="table-wrap"><table id="positions"><thead><tr>
+        <th>Symbol</th><th>Side</th><th class="r">Qty</th><th class="r">Entry</th><th class="r">Price</th>
+        <th class="r">Value</th><th class="r">Unrealized</th></tr></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div class="seg" role="tablist" id="tabs">
+          <button data-tab="trades" class="on">Trades</button>
+          <button data-tab="decisions">Bot decisions</button>
+          <button data-tab="orders">Orders</button>
+        </div>
+        <span id="tab-meta" class="muted"></span>
+      </div>
+
+      <div data-panel="trades">
+        <div class="table-wrap"><table id="trades"><thead><tr>
+          <th>Closed (ET)</th><th>Symbol</th><th>Dir</th><th class="r">Qty</th><th class="r">Entry</th>
+          <th class="r">Exit</th><th class="r">P&amp;L</th><th class="r">Return</th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <div data-panel="decisions" hidden>
+        <div class="filters">
+          <label>Symbol <select id="f-symbol"><option value="">All</option></select></label>
+          <label>Type <select id="f-type">
+            <option value="">All</option><option value="signal">Signals</option>
+            <option value="ai.decision">AI decisions</option><option value="risk.rejected">Rejections</option>
+            <option value="risk.approved">Approvals</option><option value="order.submitted">Orders</option>
+          </select></label>
+        </div>
+        <ol id="decisions" class="feed"></ol>
+      </div>
+
+      <div data-panel="orders" hidden>
+        <div class="table-wrap"><table id="orders"><thead><tr>
+          <th>Submitted (ET)</th><th>Symbol</th><th>Side</th><th>Type</th><th class="r">Qty</th>
+          <th class="r">Filled @</th><th>Status</th><th>Source</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="muted">Read-only view. Educational software, not financial advice.</footer>
+  <script src="static/app.js"></script>
+</body>
+</html>

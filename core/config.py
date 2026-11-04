@@ -84,6 +84,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_json: bool = True
 
+    # --- Dashboard (read-only; keep it bound to localhost behind nginx) -------
+    dashboard_host: str = "127.0.0.1"
+    dashboard_port: int = Field(default=8050, gt=0, lt=65536)
+
     @field_validator("symbols", "ai_fallback_models", mode="before")
     @classmethod
     def _parse_csv(cls, value: Any) -> Any:

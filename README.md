@@ -105,6 +105,14 @@ logged as `risk.config_clamped`.
 Protection lives at the broker: every entry is a bracket order (market entry, stop-loss
 and take-profit legs), so stops stay in place if the bot crashes.
 
+## Dashboard and server deployment
+
+The bot records its decisions (signals, AI reasoning, risk rejections, orders) in
+`state/journal.db`. `python -m dashboard.app` serves a read-only dashboard on
+`127.0.0.1:8050` that combines that journal with Alpaca's order and equity history.
+See [deploy/DEPLOY.md](deploy/DEPLOY.md) for running the bot and the dashboard on EC2
+behind nginx with a password.
+
 ## Known limitations
 
 - **CVD is a proxy.** Alpaca's standard feeds don't provide Level 2. Trades are

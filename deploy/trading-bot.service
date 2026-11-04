@@ -1,0 +1,28 @@
+[Unit]
+Description=Intraday AI trading bot (Alpaca)
+After=network-online.target time-sync.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tradingbot
+Group=tradingbot
+WorkingDirectory=/opt/trading_bot
+ExecStart=/opt/trading_bot/.venv/bin/python main.py
+Environment=PYTHONUNBUFFERED=1
+# SIGTERM triggers the bot's graceful shutdown: cancel orders, then flatten
+# (FLATTEN_ON_SHUTDOWN=true). `systemctl stop/restart` therefore closes positions.
+KillSignal=SIGTERM
+TimeoutStopSec=90
+Restart=on-failure
+RestartSec=30
+
+# Hardening: the bot may only write its state directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/trading_bot/state
+
+[Install]
+WantedBy=multi-user.target

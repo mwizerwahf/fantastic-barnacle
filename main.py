@@ -23,6 +23,7 @@ from core.ai_router import AIRouter
 from core.broker import BaseBroker, DryRunBroker, build_broker
 from core.config import MARKET_TZ, Settings
 from core.exceptions import TradingBotError
+from core.journal import JournalHandler
 from core.models import AccountState, Action, Clock, MarketSession, Position
 from core.observability import log_event, new_correlation_id, setup_logging
 from data.indicators import add_indicators, compute_all
@@ -204,6 +205,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Configuration error:\n{exc}", file=sys.stderr)
         return 2
     setup_logging(settings.log_level, settings.log_json)
+    journal_file = "journal.dry_run.db" if args.dry_run else "journal.db"
+    logging.getLogger().addHandler(JournalHandler(settings.state_dir / journal_file))
     log_event(log, logging.INFO, "startup", tz=MARKET_TZ, dry_run=args.dry_run, **settings.public_summary())
     if not settings.is_paper and not args.dry_run:
         try:
