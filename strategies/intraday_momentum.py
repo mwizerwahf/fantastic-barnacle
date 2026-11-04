@@ -1,4 +1,11 @@
 """VWAP / RSI / CVD momentum with an AI confirmation step."""
+"""
+Name: it's an intraday VWAP momentum strategy, sometimes called trend continuation; in the code it's intraday_momentum. It buys when all three of these agree:
+
+Price is above VWAP, the volume-weighted average price for the day, so the trend is up.
+RSI is between 55 and 75, so momentum is strong but not yet overbought.
+Order flow is positive, measured by CVD, the running difference between buying and selling volume (estimated from individual trades).
+"""
 
 from __future__ import annotations
 
