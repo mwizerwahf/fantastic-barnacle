@@ -1,0 +1,28 @@
+[Unit]
+Description=Forex engine (multi-strategy, OANDA)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fxbot
+Group=fxbot
+WorkingDirectory=/opt/trading_bot
+ExecStart=/opt/trading_bot/.venv/bin/python -m fx engine
+Environment=PYTHONUNBUFFERED=1
+# Stopping never closes trades: every trade carries a broker-side stop-loss.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Restart=always
+RestartSec=10
+# Keeps the engine well inside a 1 GB box even if something leaks.
+MemoryMax=400M
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/trading_bot/fx_state
+
+[Install]
+WantedBy=multi-user.target

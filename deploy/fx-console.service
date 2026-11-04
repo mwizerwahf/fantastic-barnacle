@@ -1,0 +1,24 @@
+[Unit]
+Description=Forex console (served by nginx at /fx/)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fxbot
+Group=fxbot
+WorkingDirectory=/opt/trading_bot
+ExecStart=/opt/trading_bot/.venv/bin/python -m fx console
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=10
+MemoryMax=200M
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/trading_bot/fx_state
+
+[Install]
+WantedBy=multi-user.target

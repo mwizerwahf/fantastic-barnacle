@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     ai_timeout_s: float = Field(default=30.0, gt=0)
     ai_max_attempts: int = Field(default=2, ge=1)
     ai_temperature: float = Field(default=0.0, ge=0, le=2)
-    ai_max_tokens: int = Field(default=400, gt=0)
+    ai_max_tokens: int = Field(default=4000, gt=0)  # thinking models spend part of this on reasoning
     ai_context_bars: int = Field(default=30, ge=5, le=200)
 
     # --- Strategy -----------------------------------------------------------

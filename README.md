@@ -113,6 +113,19 @@ The bot records its decisions (signals, AI reasoning, risk rejections, orders) i
 See [deploy/DEPLOY.md](deploy/DEPLOY.md) for running the bot and the dashboard on EC2
 behind nginx with a password.
 
+## Forex engine (separate program)
+
+`fx/` is an independent multi-strategy forex engine for OANDA with its own SQLite database and web console:
+named strategies (one per "person"), each with its own pairs, sizing, pip or money-amount exits, optional AI model
+and its own account (or a shared one), running side by side, even on the same pair. Performance is tracked per
+strategy and per version. Setup on a 1 GB server: [deploy/FOREX.md](deploy/FOREX.md).
+
+```bash
+python -m fx keygen    # FX_MASTER_KEY for .env
+python -m fx engine    # trading engine
+python -m fx console   # web console on 127.0.0.1:8060
+```
+
 ## Known limitations
 
 - **CVD is a proxy.** Alpaca's standard feeds don't provide Level 2. Trades are

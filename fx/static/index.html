@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>FX Console</title>
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" aria-label="Main navigation">
+    <div class="brand">
+      <span class="logo fx" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg>
+      </span>
+      <div class="brand-text"><strong>FX Console</strong><span>multi-strategy forex</span></div>
+    </div>
+    <nav class="nav">
+      <a href="#overview" data-nav="overview">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span>Overview</span></a>
+      <a href="#strategies" data-nav="strategies">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.2c2.3-.3 4.2 1.2 5 4.3"/></svg>
+        <span>Strategies</span></a>
+      <a href="#trades" data-nav="trades">
+        <svg viewBox="0 0 24 24"><path d="M7 4v16M7 20l-3-3M7 20l3-3"/><path d="M17 20V4M17 4l-3 3M17 4l3 3"/></svg>
+        <span>Trades</span></a>
+      <a href="#activity" data-nav="activity">
+        <svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+        <span>Activity</span></a>
+      <a href="#setup" data-nav="setup">
+        <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        <span>Accounts &amp; AI</span></a>
+    </nav>
+    <div class="side-foot">
+      <div class="side-status"><span id="side-dot" class="dot"></span><span id="side-engine">Engine status unknown</span></div>
+      <p class="fine">Educational software, not financial advice. Forex trading carries a high risk of loss.</p>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="titles">
+        <h1 id="page-title">Overview</h1>
+        <p id="page-sub" class="sub"></p>
+      </div>
+      <div class="top-actions">
+        <span id="session" class="chip" title="Forex market: Sunday 17:05 to Friday 17:00 New York">Market</span>
+        <span id="engine" class="chip">Engine</span>
+        <span id="updated" class="sub">Loading...</span>
+        <button id="refresh" class="icon-btn" type="button" title="Refresh now" aria-label="Refresh now">
+          <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
+        </button>
+        <button id="theme" class="icon-btn" type="button" title="Toggle light / dark" aria-label="Toggle theme">
+          <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="banner" class="banner warn" hidden></div>
+
+    <main class="content">
+      <!-- Overview -->
+      <section data-page="overview">
+        <div id="onboarding" class="card empty-card" hidden>
+          <h2>Welcome. Let's get your first strategy trading.</h2>
+          <p class="sub">Three steps, all from this console. Start on an OANDA practice account.</p>
+          <ol class="steps" id="onboard-steps"></ol>
+          <a class="btn primary" id="onboard-next" href="#setup">Start</a>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><span class="k-label">Balance</span><span id="k-balance" class="k-value">-</span><span id="k-balance-sub" class="k-sub">-</span></div>
+          <div class="kpi"><span class="k-label">Today's P&amp;L</span><span id="k-today" class="k-value">-</span><span id="k-today-sub" class="k-sub">since 17:00 New York</span></div>
+          <div class="kpi"><span class="k-label">Open P&amp;L</span><span id="k-open" class="k-value">-</span><span id="k-open-sub" class="k-sub">-</span></div>
+          <div class="kpi"><span class="k-label">Strategies</span><span id="k-strats" class="k-value">-</span><span id="k-strats-sub" class="k-sub">-</span></div>
+          <div class="kpi"><span class="k-label">Best · 30 days</span><span id="k-best" class="k-value">-</span><span id="k-best-sub" class="k-sub">-</span></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Leaderboard</h2><a class="link" href="#strategies">All strategies →</a></div>
+          <div class="table-wrap"><table id="leaderboard"><thead><tr>
+            <th>Strategy</th><th>Type</th><th>Pairs</th><th>Status</th><th class="r">Trades</th><th class="r">Win rate</th>
+            <th class="r">Profit factor</th><th class="r">Today</th><th class="r">30 days</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="grid g-2-1">
+          <div class="card">
+            <div class="card-head"><h2>Open trades</h2><span id="open-meta" class="sub"></span></div>
+            <div class="table-wrap"><table id="open-trades"><thead><tr>
+              <th>Strategy</th><th>Pair</th><th>Side</th><th class="r">Units</th><th class="r">Entry</th>
+              <th class="r">Stop</th><th class="r">Target</th><th>Opened</th><th></th></tr></thead><tbody></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Recent activity</h2><a class="link" href="#activity">View all →</a></div>
+            <ol id="recent" class="feed compact"></ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- Strategies -->
+      <section data-page="strategies" hidden>
+        <div class="toolbar">
+          <div class="seg" id="st-filter"><button data-v="live" class="on">Active &amp; paused</button><button data-v="retired">Retired</button><button data-v="all">All</button></div>
+          <span class="spacer"></span>
+          <a class="btn primary" href="#new">+ New strategy</a>
+        </div>
+        <div id="cards" class="s-cards"></div>
+      </section>
+
+      <!-- Strategy detail -->
+      <section data-page="strategy" hidden>
+        <a class="back" href="#strategies">← All strategies</a>
+        <div class="card">
+          <div class="detail-head">
+            <span id="d-avatar" class="avatar lg">?</span>
+            <div><h2 id="d-name">-</h2><p id="d-sub" class="sub">-</p></div>
+            <span id="d-status" class="chip">-</span>
+            <span class="spacer"></span>
+            <div class="actions" id="d-actions"></div>
+          </div>
+        </div>
+        <div id="d-stats" class="stats"></div>
+        <div class="grid g-2-1">
+          <div class="card">
+            <div class="card-head"><h2>Cumulative P&amp;L</h2><span id="d-ccy" class="sub"></span></div>
+            <div id="d-chart" class="chart"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Configuration</h2><span id="d-version" class="sub"></span></div>
+            <dl class="facts" id="d-config"></dl>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Versions</h2><span class="sub">Each edit to trading settings starts a new version, so you can compare changes</span></div>
+          <div class="table-wrap"><table id="d-versions"><thead><tr>
+            <th>Version</th><th>Changed</th><th>Note</th><th class="r">Trades</th><th class="r">Win rate</th>
+            <th class="r">Profit factor</th><th class="r">Net pips</th><th class="r">Net P&amp;L</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="grid g-1-1">
+          <div class="card">
+            <div class="card-head"><h2>By pair</h2></div>
+            <div class="table-wrap"><table id="d-pairs"><thead><tr>
+              <th>Pair</th><th class="r">Trades</th><th class="r">Win rate</th><th class="r">Pips</th><th class="r">Net P&amp;L</th></tr></thead><tbody></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Activity</h2></div>
+            <ol id="d-events" class="feed compact"></ol>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Trades</h2><span id="d-trades-meta" class="sub"></span></div>
+          <div class="table-wrap"><table id="d-trades"><thead><tr>
+            <th>Closed / opened</th><th>Pair</th><th>Side</th><th class="r">Units</th><th class="r">Entry</th><th class="r">Exit</th>
+            <th class="r">Pips</th><th class="r">P&amp;L</th><th>Exit reason</th><th>v</th><th></th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- Strategy editor -->
+      <section data-page="edit" hidden>
+        <a class="back" id="edit-back" href="#strategies">← Back</a>
+        <form id="s-form" class="card form" novalidate>
+          <div class="form-section">
+            <h3>Identity</h3>
+            <div class="form-grid">
+              <label class="f">Name<input id="s-name" type="text" maxlength="30" autocomplete="off" placeholder="e.g. Amara"><span class="hint">A person's name. Unique forever, even after retiring.</span></label>
+              <label class="f">Strategy type<select id="s-kind"></select><span class="hint" id="s-kind-desc"></span></label>
+              <label class="f">Account<select id="s-account"></select><span class="hint">Strategies can share an account or each use their own.</span></label>
+            </div>
+          </div>
+          <div class="form-section">
+            <h3>Market</h3>
+            <div class="form-grid">
+              <label class="f wide">Pairs<input id="s-instruments" type="text" placeholder="EUR_USD, GBP_USD, XAU_USD" autocomplete="off"><span class="hint">Comma separated. Other strategies may trade the same pairs.</span></label>
+              <label class="f">Timeframe<select id="s-granularity"></select><span class="hint">Decides once per completed candle.</span></label>
+            </div>
+          </div>
+          <div class="form-section">
+            <h3>Signal settings</h3>
+            <div class="form-grid" id="s-params"></div>
+          </div>
+          <div class="form-section">
+            <h3>Position size</h3>
+            <div class="form-grid">
+              <label class="f">Sizing<select id="r-sizing"><option value="units">Fixed units</option><option value="risk_pct">% of balance at risk</option></select></label>
+              <label class="f" id="w-units">Units per trade<input id="r-units" type="number" min="1" step="1"><span class="hint">1,000 = micro lot · 100,000 = standard lot</span></label>
+              <label class="f" id="w-risk">Risk per trade (%)<input id="r-risk_pct" type="number" min="0.01" step="0.01"><span class="hint" id="h-risk"></span></label>
+            </div>
+          </div>
+          <div class="form-section">
+            <h3>Exits per trade <span class="sub">(placed at the broker with the entry)</span></h3>
+            <div class="form-grid">
+              <div class="f">Stop-loss<div class="inline"><select id="r-sl-mode"><option value="pips">pips</option><option value="amount">amount</option></select><input id="r-sl" type="number" min="0" step="any"></div><span class="hint">Required. Amount = account currency lost if hit.</span></div>
+              <div class="f">Take-profit<div class="inline"><select id="r-tp-mode"><option value="pips">pips</option><option value="amount">amount</option><option value="none">none</option></select><input id="r-tp" type="number" min="0" step="any"></div><span class="hint">Amount = account currency gained if hit.</span></div>
+            </div>
+          </div>
+          <div class="form-section">
+            <h3>Strategy-wide limits <span class="sub">(watched by the bot)</span></h3>
+            <div class="form-grid">
+              <label class="f">Close all at total profit<input id="r-basket_tp_amount" type="number" min="0" step="any" placeholder="off"><span class="hint">Sum of this strategy's open trades, account currency.</span></label>
+              <label class="f">Close all at total loss<input id="r-basket_sl_amount" type="number" min="0" step="any" placeholder="off"></label>
+              <label class="f">Daily loss limit<input id="r-daily_loss_limit" type="number" min="0" step="any" placeholder="off"><span class="hint">Closes everything and pauses until 17:00 New York.</span></label>
+              <label class="f">Max open trades<input id="r-max_open_trades" type="number" min="1" step="1"></label>
+            </div>
+            <details class="adv">
+              <summary>Execution safeguards</summary>
+              <div class="form-grid">
+                <label class="f">Max spread (pips)<input id="r-max_spread_pips" type="number" min="0.1" step="0.1"></label>
+                <label class="f">Max slippage (pips)<input id="r-max_slippage_pips" type="number" min="0.1" step="0.1"><span class="hint">The broker refuses fills worse than this.</span></label>
+                <label class="check"><input id="r-close_before_weekend" type="checkbox"> Close trades before the weekend (Fri 16:50 NY)</label>
+              </div>
+            </details>
+          </div>
+          <div class="form-section">
+            <h3>AI confirmation <span class="sub">(optional)</span></h3>
+            <div class="form-grid">
+              <label class="check wide"><input id="s-ai" type="checkbox"> Ask an AI model to confirm each signal before trading</label>
+              <label class="f" id="w-llm">AI model<select id="s-llm"></select></label>
+              <label class="f" id="w-conf">Minimum confidence<input id="r-ai_min_confidence" type="number" min="0" max="1" step="0.05"></label>
+            </div>
+          </div>
+          <div class="form-section">
+            <h3>Notes</h3>
+            <div class="form-grid">
+              <label class="f wide">Notes<textarea id="s-notes" maxlength="500" placeholder="What is this strategy trying to do?"></textarea></label>
+              <label class="f wide" id="w-change">What changed in this edit?<input id="s-change" type="text" maxlength="200" placeholder="e.g. wider stop on GBP pairs"><span class="hint">Shown in the version history.</span></label>
+            </div>
+          </div>
+          <div class="form-foot">
+            <button class="btn primary" type="submit" id="s-submit">Create strategy</button>
+            <a class="btn" id="s-cancel" href="#strategies">Cancel</a>
+            <span id="s-error" class="form-error" role="alert"></span>
+          </div>
+        </form>
+      </section>
+
+      <!-- Trades -->
+      <section data-page="trades" hidden>
+        <div class="toolbar">
+          <label class="field">Strategy <select id="t-strategy"><option value="">All strategies</option></select></label>
+          <div class="seg" id="t-status"><button data-v="" class="on">All</button><button data-v="open">Open</button><button data-v="closed">Closed</button><button data-v="failed">Failed</button></div>
+          <div class="seg" id="t-days"><button data-v="7">7D</button><button data-v="30" class="on">30D</button><button data-v="90">90D</button><button data-v="3650">All</button></div>
+          <span class="spacer"></span>
+          <button id="t-export" class="btn" type="button">Export CSV</button>
+        </div>
+        <div id="t-stats" class="stats"></div>
+        <div class="card">
+          <div class="table-wrap"><table id="t-table"><thead><tr>
+            <th>Time</th><th>Strategy</th><th>Pair</th><th>Side</th><th class="r">Units</th><th class="r">Entry</th><th class="r">Exit</th>
+            <th class="r">Pips</th><th class="r">P&amp;L</th><th>Status</th><th>Reason</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- Activity -->
+      <section data-page="activity" hidden>
+        <div class="toolbar">
+          <label class="field">Strategy <select id="a-strategy"><option value="">All strategies</option></select></label>
+          <label class="field grow">Search <input id="a-search" type="search" placeholder="reason, pair, model..."></label>
+        </div>
+        <div class="card"><ol id="a-feed" class="feed"></ol></div>
+      </section>
+
+      <!-- Accounts & AI -->
+      <section data-page="setup" hidden>
+        <div id="setup-warn" class="callout warn" hidden></div>
+        <div class="card">
+          <div class="card-head"><h2>OANDA accounts</h2><span class="sub">Tokens are encrypted on the server and never shown again</span></div>
+          <div class="table-wrap"><table id="accounts"><thead><tr>
+            <th>Label</th><th>Type</th><th>Account ID</th><th>Token</th><th>Currency</th><th class="r">Balance</th><th>Hedging</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+          <form id="acc-form" class="form" novalidate>
+            <h3 class="form-title">Add an OANDA account</h3>
+            <div class="form-grid">
+              <label class="f">Label<input id="acc-label" type="text" maxlength="40" placeholder="Practice 1" autocomplete="off"></label>
+              <label class="f">Type<select id="acc-env"><option value="practice">Practice (demo money)</option><option value="live">Live (real money)</option></select></label>
+              <label class="f">OANDA account ID<input id="acc-id" type="text" placeholder="101-004-1234567-001" autocomplete="off"></label>
+              <label class="f">API token<input id="acc-token" type="password" autocomplete="new-password" placeholder="from OANDA › Manage API Access"></label>
+            </div>
+            <div class="form-foot"><button class="btn primary" type="submit">Add account</button><span id="acc-error" class="form-error" role="alert"></span></div>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>AI models</h2><span class="sub">Strategies use the default unless you pick one for them</span></div>
+          <div class="table-wrap"><table id="llms"><thead><tr>
+            <th>Label</th><th>Model</th><th>API key</th><th>Server URL</th><th>Default</th><th></th></tr></thead><tbody></tbody></table></div>
+          <form id="llm-form" class="form" novalidate>
+            <h3 class="form-title" id="llm-title">Add an AI model</h3>
+            <div class="form-grid">
+              <label class="f">Label<input id="llm-label" type="text" maxlength="40" placeholder="Gemini Flash" autocomplete="off"></label>
+              <label class="f">Model<input id="llm-model" type="text" placeholder="gemini/gemini-3.8-flash" autocomplete="off"><span class="hint">provider/model, e.g. anthropic/claude-sonnet-5-5, ollama/llama3.1</span></label>
+              <label class="f">API key<input id="llm-key" type="password" autocomplete="new-password" placeholder="optional"><span class="hint">Empty = use the provider's key from the server .env</span></label>
+              <label class="f">Server URL<input id="llm-base" type="text" placeholder="optional, self-hosted only" autocomplete="off"></label>
+              <label class="check"><input id="llm-default" type="checkbox"> Make this the default</label>
+            </div>
+            <div class="form-foot"><button class="btn primary" type="submit" id="llm-submit">Add AI model</button><button class="btn" type="button" id="llm-cancel" hidden>Cancel edit</button><span id="llm-error" class="form-error" role="alert"></span></div>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+<div id="toast" class="toast" role="status"></div>
+<script src="static/app.js"></script>
+</body>
+</html>
